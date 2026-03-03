@@ -1,9 +1,8 @@
 import { useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, FileText, Loader2, CheckCircle } from "lucide-react";
+import { Upload, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { generateMockResumeData } from "@/lib/mockData";
 import type { ResumeData } from "@/types/resume";
 
 interface ResumeUploadProps {
@@ -18,7 +17,7 @@ const ResumeUpload = ({ onAnalyzing, onAnalyzed, isAnalyzing }: ResumeUploadProp
   const { toast } = useToast();
 
   const handleFile = useCallback(
-    (file: File) => {
+    async (file: File) => {
       if (file.type !== "application/pdf") {
         toast({
           title: "Invalid file type",
@@ -30,15 +29,86 @@ const ResumeUpload = ({ onAnalyzing, onAnalyzed, isAnalyzing }: ResumeUploadProp
       setFileName(file.name);
       onAnalyzing();
 
-      // Simulate AI analysis
-      setTimeout(() => {
-        const data = generateMockResumeData(file.name);
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const base64 = btoa(
+          new Uint8Array(arrayBuffer).reduce(
+            (data, byte) => data + String.fromCharCode(byte),
+            ""
+          )
+        );
+
+        const response = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 2000,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "document",
+                    source: {
+                      type: "base64",
+                      media_type: "application/pdf",
+                      data: base64,
+                    },
+                  },
+                  {
+                    type: "text",
+                    text: `Parse this resume and return ONLY a raw JSON object with no markdown or backticks.
+
+Use this exact structure:
+{
+  "name": "full name from resume",
+  "title": "most fitting professional title based on their background",
+  "summary": "2-3 sentence professional summary",
+  "skills": [
+    { "name": "skill", "level": "beginner|intermediate|advanced|expert", "category": "Frontend|Backend|Languages|Database|Cloud|DevOps|Tools|ML|Other" }
+  ],
+  "experience": [
+    { "title": "role", "company": "company", "duration": "start – end", "highlights": ["point 1", "point 2"] }
+  ],
+  "education": [
+    { "degree": "degree name", "institution": "school", "year": "year" }
+  ],
+  "recommendations": [
+    { "id": "1", "title": "job title", "company": "real company", "location": "city or Remote", "matchScore": 88, "salary": "range in USD or BDT based on location", "skills": ["skill1", "skill2", "skill3"], "description": "2 sentences about the role", "type": "Full-time" }
+  ]
+}
+
+Rules:
+- Extract ALL data strictly from the resume. No placeholders.
+- skills: every technology, language, framework, tool mentioned
+- recommendations: exactly 6 jobs tailored to THIS person's real skills and seniority. Honest matchScore 60-95.`,
+                  },
+                ],
+              },
+            ],
+          }),
+        });
+
+        const result = await response.json();
+        if (result.error) throw new Error(result.error.message);
+
+        const raw = result.content.map((b: { text?: string }) => b.text || "").join("");
+        const clean = raw.replace(/```json|```/g, "").trim();
+        const data: ResumeData = JSON.parse(clean);
+
         onAnalyzed(data);
         toast({
           title: "Resume Analyzed!",
           description: "Your resume has been successfully parsed and matched.",
         });
-      }, 3000);
+      } catch (err) {
+        toast({
+          title: "Analysis failed",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      }
     },
     [onAnalyzing, onAnalyzed, toast]
   );
