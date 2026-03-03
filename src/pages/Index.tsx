@@ -1,12 +1,33 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { motion } from "framer-motion";
+import HeroSection from "@/components/HeroSection";
+import ResumeUpload from "@/components/ResumeUpload";
+import FeaturesSection from "@/components/FeaturesSection";
+import DashboardView from "@/components/DashboardView";
+import type { ResumeData } from "@/types/resume";
 
 const Index = () => {
+  const [resumeData, setResumeData] = useState<ResumeData | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const handleResumeAnalyzed = (data: ResumeData) => {
+    setResumeData(data);
+    setIsAnalyzing(false);
+  };
+
+  if (resumeData) {
+    return <DashboardView data={resumeData} onBack={() => setResumeData(null)} />;
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <HeroSection />
+      <ResumeUpload
+        onAnalyzing={() => setIsAnalyzing(true)}
+        onAnalyzed={handleResumeAnalyzed}
+        isAnalyzing={isAnalyzing}
+      />
+      <FeaturesSection />
     </div>
   );
 };
