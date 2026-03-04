@@ -1,19 +1,32 @@
-const express = require("express");
-const router = express.Router();
-const auth = require("../middleware/auth");
-const upload = require("../middleware/upload");
-const {
-    uploadResume,
-    getResumes,
-    getResumeById,
-    deleteResume,
-} = require("../controllers/resumeController");
+const mongoose = require("mongoose");
 
-router.use(auth);
+const resumeSchema = new mongoose.Schema(
+{
+    userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+    },
+    fileName: { type: String, required: true },
+    rawText: { type: String, required: true },
+    parsed: {
+    skills: [String],
+    experience: [String],
+    education: [String],
+    entities: [
+        {
+        text: String,
+        label: String,
+        },
+    ],
+    },
+    embedding: {
+    type: [Number],
+    default: [],
+    },
+    summary: { type: String, default: "" },
+},
+{ timestamps: true }
+);
 
-router.post("/upload", upload.single("resume"), uploadResume);
-router.get("/", getResumes);
-router.get("/:id", getResumeById);
-router.delete("/:id", deleteResume);
-
-module.exports = router;
+module.exports = mongoose.model("Resume", resumeSchema);

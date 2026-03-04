@@ -1,10 +1,19 @@
-const express = require("express");
-const router = express.Router();
-const auth = require("../middleware/auth");
-const { getJobs, getJobById, createJob } = require("../controllers/jobController");
+const mongoose = require("mongoose");
 
-router.get("/", getJobs);
-router.get("/:id", getJobById);
-router.post("/", auth, createJob); // auth-protected seed endpoint
+const jobSchema = new mongoose.Schema(
+    {
+        title: { type: String, required: true },
+        company: { type: String, required: true },
+        location: { type: String, default: "Remote" },
+        description: { type: String, required: true },
+        skills: [String],
+        embedding: {
+        type: [Number],
+        default: [],
+        },
+        source: { type: String, default: "manual" },
+    },
+    { timestamps: true }
+);
 
-module.exports = router;
+module.exports = mongoose.model("Job", jobSchema);

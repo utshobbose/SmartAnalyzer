@@ -1,10 +1,19 @@
-const express = require("express");
-const router = express.Router();
-const { register, login, me } = require("../controllers/authController");
-const auth = require("../middleware/auth");
+const jwt = require("jsonwebtoken");
 
-router.post("/register", register);
-router.post("/login", login);
-router.get("/me", auth, me);
+const authMiddleware = (req, res, next) => {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "No token provided" });
+  }
 
-module.exports = router;
+  const token = header.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.id;
+    next();
+  } catch {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+};
+
+module.exports = authMiddleware;
